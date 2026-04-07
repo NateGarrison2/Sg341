@@ -3,7 +3,7 @@ Repo for ABT480 to document genome sequencing.
 
 ## Procedures for Generating MyGenome Assemblies and Submitting Data to NCBI
 1. Download Datasets from the Farman Lab Mac
-- Used `scp` command to download data from Dr. Farman's Lab Mac onto personal VM.
+> Used `scp` command to download data from Dr. Farman's Lab Mac onto personal VM.
 
 2. [Assess Sequence Quality with FASTQC](https://github.com/NateGarrison2/Sg341/blob/6615c561d65bc83b3bc274e084cb6b7d4f8e955b/SequenceQuality.md)
 
