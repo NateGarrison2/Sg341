@@ -103,8 +103,6 @@ Trimmomatic did a great job of removing poor quality sequence in just about ever
 ```sbatch velvetoptimiser.sh Sg341 57 137 10```
 4. Run VelvetOptimiser again in steps of 2 (range of -8 to +8) to find the most optimal k-mer value based on results: 
 ```sbatch velvetoptimiser.sh Sg341 89 105 2```
-5. Run Velvet on paired reads using optimal k-mer value:
-`velveth 99 -shortPaired -fastq -separate Sg341_1_paired.fq Sg341_2_paired.fq`
 
 ### Results from log file of 2-step VelvetOptimiser:
 - Optimal k-mer value: 99
@@ -142,9 +140,18 @@ sbatch GenomePostProcess.sh Sg341_newheader.fasta
 ```
 In the end, we get a finalized genome assembly named Sg341_final.fasta
 ## Assess Genome Quality using BUSCO
-
+BUSCO (Benchmarking Using Single-Copy Orthologs) is a tool used to assess genome completeness by using BLAST to search for a set of single-copy genes which have "orthologs" in genomes of related species.
+We run BUSCO on our fully optimized, fully cleaned genome assembly (`Sg341_final.fasta`) by running: ```sbatch BuscoSingularity.sh Sg341_final.fasta```
+This outputs a `Sg341_final_busco` directory with a `short_summary` file inside with results.
 ## Genome Interrogation using BLAST
-
+We need to determine which contigs in the final assembly correspond to the mitochondrial genome in preparation to submit to NCBI.
+1. BLAST the `MoMitochondrion.fasta` sequence against the final genome assembly:
+```singularity run --app blast2120 /share/singularity/images/ccs/conda/amd-conda1-centos8.sinf blastn -query MoMitochondrion.fasta -subject Sg341_final.fasta -evalue 1e-50 -max_target_seqs 20000 -outfmt '6 qseqid sseqid slen length qstart qend sstart send btop' -out MoMitochondrion.Sg341.BLAST```
+2. Export a list of contigs which comprise of mitochondrial sequences to upload along with our genome assembly in NCBI:
+```awk '$4/$3 >= 0.9 {print $2 ",mitochondrion"}' MoMitochondrion.Sg341.BLAST > Sg341_mitochondrion.csv```
+3. Export the blast results that did not pass the above filter into a separate .txt file:
+```awk '$4/$3 < 0.9' MoMitochondrion.Sg341.BLAST > Sg341_short_mitochondrial_hits.txt```
+4. Manually interrogate the `Sg341_short_mitochondrial_hits.txt` file to look for blast alignments that got split in half that combined would cross the 90% threshold, and add those contigs to the bottom of the `Sg341_mitochondrion.csv` file.
 ## Perform Gene Predictions
 
 ## Visualize Genes in Genome Browser
