@@ -153,5 +153,44 @@ We need to determine which contigs in the final assembly correspond to the mitoc
 ```awk '$4/$3 < 0.9' MoMitochondrion.Sg341.BLAST > Sg341_short_mitochondrial_hits.txt```
 4. Manually interrogate the `Sg341_short_mitochondrial_hits.txt` file to look for blast alignments that got split in half that combined would cross the 90% threshold, and add those contigs to the bottom of the `Sg341_mitochondrion.csv` file.
 ## Perform Gene Predictions
+SNAP is a program which searches for regions of a genome which are likely to be genes. SNAP uses properties of the DNA sequence to infer features such as start codons, splice junctions, and untranslated regions. We want to train SNAP on a reference genome of a related strain, B71.
 
+### Training SNAP
+  We will want to run the following commands in screen, telling screen to begin bash as a login shell. `screen -S genes bash -l`
+  1. Append the genome fasta sequence to the end of the gff3 file using this command: `echo '##FASTA' | cat B71Ref2_a0.3.gff3 - B71Ref2.fasta > B71Ref2.gff3`
+  2. Ensure B71Ref2.gff3 has the correct format (columnar): `grep '##FASTA' -B 5 -A 5 B71Ref2.gff3`
+  3. Now that we have a GFF file with gene annotations and genome sequences, we need to convert the MAKER annotations to ZFF to run SNAP: `maker2zff B71Ref2.gff3` This created files genome.ann (ZFF) and genome.dna (fasta)
+  4. We want to output information about our annotations to the screen: `fathom genome.ann genome.dna -gene-stats`
+  5. We want up to 1000 base pairs of sequences on both sides of each gene to train the HMM about which sequences are likely to occur near genes: `fathom genome.ann genome.dna -categorize 1000` This outputs several pairs of .ann and .dna files.
+  6. We look at statistics of unique, non-overlapping genes: `fathom uni.ann uni.dna -gene-stats`
+  7. We extract the genome, transcript, and protein sequences from these genes by exporting, keeping 1000 base pairs of context and flipping genes on the reverse strand: `fathom uni.ann uni.dna -export 1000 -plus`
+  8. Now that the data is in a suitable format, we can train the HMM: `forge export.ann export.dna`
+  9. We use one final SNAP tool to condense everything into a single for the use of SNAP runs (Moryzae names the header of the output for ID purposes, then we find all the .model and .count files in the current directory, and output to a Moryzae.hmm file): `hmm-assembler.pl Moryzae . > Moryzae.hmm`
+
+
+  ### Running SNAP
+  
+  We can now begin to predict genes by running SNAP.
+  1. Run SNAP using the name of the parameter file and the final fasta file, and direct to a .zff file: `snap-hmm Moryzae.hmm Sg341_final.fasta > Sg341-snap.zff`
+  2. Compute stats from ZFF and fasta files: `fathom Sg341-snap.zff Sg341_final.fasta -gene-stats`
+  3. Generate a GFF2 file to work with most other programs: `snap-hmm Moryzae.hmm Sg341_final.fasta -gff > Sg341-snap.gff2`
+
+### Running AUGUSTUS
+  AUGUSTUS is a tool to find and predict genes. It already contains an organism closely related to ours (Magnaporthe grisea) so we won't have to retrain AUGUSTUS. To run AUGUSTUS, we specify a species to use as a parameter file:
+  ```augustus --species=magnaporthe_grisea --gff3=on --singlestrand=true --progress=true Sg341_final.fasta > Sg341-augustus.gff3```
+This outputs a .gff3 file.
+
+### Running MAKER
+1. Create a MAKER configuration file: `singularity exec /share/singularity/images/ccs/MAKER/amd-maker-debian10.sinf maker -CTL` This generates three files, maker_exe.ctl lists locations of programs MAKER uses, maker_bopts.ctl sets thresholds for accepting alignments of EST and protein evidence, and maker_opts.ctl describes the data to be used as input to MAKER, steps to perform, and options for those steps.
+2. Run `nano maker_opts.ctl` to edit it by changing:
+   a. genome=/path/to/Sg341_final.fasta
+   b. model_org= (set to blank)
+   c. repeat_protein= (set to blank)
+   d. snaphmm=/path/to/Moryzae.hmm
+   e. augustus_species=magnaporthe_grisea
+   f. keep_preds=1
+   g. protein=/home/yourusername/genes/maker/genbank/ncbi-protein-Magnaporthe_organism.fasta
+3. Run maker.sh: `sbatch maker.sh Sg341_final.fasta`
+4. Merge everything together into one GFF file: `singularity exec /share/singularity/images/ccs/MAKER/amd-maker-debian10.sinf gff3_merge -d Sg341_final.maker.output/Sg341_final_master_datastore_index.log -o Sg341-maker.gff3`
+This outputs a .gff3 file.
 ## Visualize Genes in Genome Browser
