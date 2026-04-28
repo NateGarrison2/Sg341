@@ -257,4 +257,11 @@ Next, we can convert the BLAST output of the first B71.Sg341.BLAST file we creat
 
 ```grep -v '^#' B71.Sg341.BLAST | awk -F'\t' 'BEGIN{OFS="\t"; print "##gff-version 3"} {print $2, "awk", "blast", $9, $10, $12, ($9 < $10 ? "+" : "-"), ".", "ID=" $1 }' > B71.Sg341.gff3```
 
-This reads each contig from the .BLAST file (starts with #), then feeds the output into awk, identifying it as a tab deliminated file starting with '##gff3-version 3'. Then, each line is formatted in accordance to the [GFF3 file format.](https://useast.ensembl.org/info/website/upload/gff3.html?)
+This reads each contig from the .BLAST file (starts with #), then feeds the output into awk, identifying it as a tab deliminated file starting with '##gff3-version 3'. Then, each line is formatted in accordance to the [GFF3 file format.](https://useast.ensembl.org/info/website/upload/gff3.html)
+
+### RNAseq
+We will use the HISAT2 tool to align RNAseq data to our genome assemblies. This tool:
+1. Uses the [Burrows Wheeler Transform](https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform) to build an indexed version of Sg341 assembly for ultra-fast alignment, because BLAST is super slow on a large amount of data like we have.
+2. Aligns RNAseq reads from FR13 and SSID16 strains from liquid culture and rice leaves respectively. Both are reads from the P. oryzae strain similar to our genomes.
+3. Indexes alignment files for fast lookup.
+4. Visualizes the RNAseq read alignments in the IGV browser, along with the gene prediction tracks.
